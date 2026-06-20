@@ -3,6 +3,21 @@
 from dataclasses import dataclass
 
 
+# Catálogo centralizado de habilidades reconocidas.
+# Única fuente de verdad: tanto CVPipeline como JobPipeline importan estos
+# sets en lugar de mantener copias propias, para evitar que ambas listas
+# diverjan silenciosamente y rompan el matching.
+TECH_SKILLS = {
+    "python", "java", "javascript", "typescript",
+    "sql", "docker", "kubernetes", "aws",
+}
+
+SOFT_SKILLS = {
+    "liderazgo", "leadership", "comunicación", "communication",
+    "trabajo en equipo", "teamwork",
+}
+
+
 @dataclass
 class Config:
     """Configuración global."""
