@@ -1,7 +1,5 @@
 # MÓDULO 1: Arquitectura - versión corregida
 
-modulo1 = '''# 📐 MÓDULO 1: Arquitectura de un Career Coach basado en IA
-
 > **Duración estimada:** 4-6 horas | **Nivel:** Fundacional
 
 ---
