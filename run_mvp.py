@@ -1,6 +1,6 @@
-from src.cv_parser import parse_cv
-from src.job_parser import parse_job
-from src.matching import compute_match
+from src.cv_parser_simple import parse_cv
+from src.job_parser_simple import parse_job
+from src.matching_simple import compute_match
 from src.recommender import recommend_actions
 
 def main():
