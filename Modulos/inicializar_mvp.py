@@ -402,6 +402,212 @@ with open(f"{base_path}/src/cv_parser/cv_pipeline.py", "w") as f:
 
 print("📂 Pipeline de CVs generado con éxito en: src/cv_parser/cv_pipeline.py")
 print("🔥 ¡Entorno del MVP listo para inicializarse por completo!")
+# ==========================================
+# Fase 6: Generar job_parser/job_pipeline.py
+# ==========================================
+job_pipeline = '''# src/job_parser/job_pipeline.py
+"""Pipeline de procesamiento de ofertas de empleo para el MVP.
+
+Extrae skills requeridas, experiencia necesaria y otros requisitos.
+"""
+
+import re
+from typing import Dict, List, Optional, Tuple
+from dataclasses import dataclass, field
+
+
+@dataclass
+class JobData:
+    """Datos estructurados de una oferta de empleo."""
+    raw_text: str = ""
+    title: str = ""
+    company: str = ""
+    required_skills: List[str] = field(default_factory=list)
+    soft_skills: List[str] = field(default_factory=list)
+    experience_years: Optional[int] = None
+    experience_range: Optional[Tuple[int, int]] = None
+    education: List[str] = field(default_factory=list)
+    remote_policy: str = "unknown"
+    employment_type: str = "full-time"
+
+
+class JobPipeline:
+    """Pipeline de procesamiento de ofertas de empleo.
+    
+    Extrae de descripciones de puesto:
+    - Skills técnicas requeridas
+    - Soft skills deseadas
+    - Años de experiencia
+    - Tipo de contrato y modalidad
+    """
+    
+    # Mismos diccionarios que CVPipeline para consistencia
+    TECH_SKILLS = {
+        "python", "java", "javascript", "typescript", "c++", "c#", "go", "rust",
+        "ruby", "php", "scala", "kotlin", "swift", "objective-c", "perl", "r",
+        "matlab", "sas", "vba", "shell", "bash", "powershell",
+        "html", "css", "sass", "less", "react", "vue", "vue.js", "angular",
+        "svelte", "next.js", "nuxt", "django", "flask", "fastapi", "spring",
+        "express", "nodejs", "node.js", "laravel", "rails", "asp.net",
+        "sql", "mysql", "postgresql", "oracle", "mongodb", "redis",
+        "elasticsearch", "cassandra", "dynamodb", "neo4j", "sqlite",
+        "firebase", "supabase", "snowflake", "bigquery",
+        "aws", "amazon web services", "azure", "gcp", "google cloud",
+        "docker", "kubernetes", "openshift", "terraform", "ansible",
+        "jenkins", "gitlab ci", "github actions", "circleci", "travis ci",
+        "puppet", "chef", "vagrant", "nginx", "apache", "istio", "helm",
+        "tensorflow", "pytorch", "keras", "scikit-learn", "xgboost",
+        "lightgbm", "pandas", "numpy", "scipy", "matplotlib", "seaborn",
+        "plotly", "tableau", "power bi", "looker", "spark", "hadoop",
+        "kafka", "airflow", "dbt", "mlflow", "kubeflow",
+        "react native", "flutter", "ionic", "cordova", "xamarin",
+        "android", "ios",
+        "pytest", "junit", "selenium", "cypress", "jest", "mocha",
+        "cucumber", "postman", "jmeter", "k6",
+        "git", "svn", "linux", "ubuntu", "windows", "macos",
+        "rest api", "graphql", "grpc", "soap", "websockets",
+        "microservices", "serverless", "lambda", "event-driven",
+        "ci/cd", "devops", "sre", "platform engineering",
+        "agile", "scrum", "kanban", "safe", "jira", "confluence",
+        "blockchain", "solidity", "web3", "smart contracts",
+        "figma", "sketch", "adobe xd", "invision",
+        "wordpress", "drupal", "magento", "shopify",
+    }
+    
+    SOFT_SKILLS = {
+        "liderazgo", "leadership", "comunicación", "communication",
+        "trabajo en equipo", "teamwork", "team player",
+        "resolución de problemas", "problem solving",
+        "pensamiento crítico", "critical thinking",
+        "adaptabilidad", "adaptability", "flexibility", "flexible",
+        "creatividad", "creativity", "innovation", "innovative",
+        "gestión del tiempo", "time management",
+        "empatía", "empathy",
+        "negociación", "negotiation",
+        "presentación", "presentation skills",
+        "proactividad", "proactive", "self-starter",
+        "autonomía", "autonomy", "self-motivated",
+        "atención al detalle", "attention to detail",
+        "gestión de proyectos", "project management",
+        "análisis", "analytical thinking",
+        "orientación a resultados", "results-oriented",
+        "orientación al cliente", "customer-oriented",
+        "aprendizaje continuo", "continuous learning",
+        "pensamiento estratégico", "strategic thinking",
+        "toma de decisiones", "decision making",
+        "gestión de conflictos", "conflict resolution",
+        "mentoría", "mentoring", "coaching",
+    }
+    
+    # Patrones para experiencia
+    EXPERIENCE_PATTERNS = [
+        r'(?:minimum\s+)?(?:(\d+)\+?\s*(?:years?|años?)(?:\s+of)?(?:\s+experience)?)',
+        r'(?:(\d+)\s*(?:-|to|a)\s*(\d+)\s*(?:years?|años?))',
+        r'(?:experiencia(?:\s+mínima)?(?:\s+de)?\s+)(\d+)\s*(?:años?|years?)',
+        r'(?:al\s+menos\s+)(\d+)\s*(?:años?|years?)',
+        r'(?:minimum\s+of\s+)(\d+)\s*(?:years?|años?)',
+    ]
+    
+    def __init__(self):
+        self.tech_skills_lower = {s.lower() for s in self.TECH_SKILLS}
+        self.soft_skills_lower = {s.lower() for s in self.SOFT_SKILLS}
+    
+    def process(self, text: str) -> JobData:
+        """Procesa el texto de una oferta de empleo."""
+        job = JobData(raw_text=text)
+        clean_text = self._preprocess(text)
+        
+        tech_skills, soft_skills = self._extract_skills(clean_text)
+        job.required_skills = tech_skills
+        job.soft_skills = soft_skills
+        
+        job.experience_years, job.experience_range = self._extract_experience(clean_text)
+        job.remote_policy = self._extract_remote_policy(clean_text)
+        job.employment_type = self._extract_employment_type(clean_text)
+        
+        return job
+    
+    def _preprocess(self, text: str) -> str:
+        """Limpia y normaliza el texto de la oferta."""
+        text = re.sub(r'<[^>]+>', ' ', text)
+        text = re.sub(r'\s+', ' ', text)
+        text = text.replace("\u2013", "-").replace("\u2014", "-")
+        return text.strip()
+    
+    def _extract_skills(self, text: str) -> tuple[List[str], List[str]]:
+        """Extrae skills requeridas de la oferta."""
+        text_lower = text.lower()
+        
+        tech_found = []
+        for skill in self.tech_skills_lower:
+            pattern = r'\b' + re.escape(skill) + r'\b'
+            if re.search(pattern, text_lower):
+                tech_found.append(skill)
+        
+        soft_found = []
+        for skill in self.soft_skills_lower:
+            pattern = r'\b' + re.escape(skill) + r'\b'
+            if re.search(pattern, text_lower):
+                soft_found.append(skill)
+        
+        return sorted(list(set(tech_found))), sorted(list(set(soft_found)))
+    
+    def _extract_experience(self, text: str) -> Tuple[Optional[int], Optional[Tuple[int, int]]]:
+        """Extrae años de experiencia requeridos."""
+        text_lower = text.lower()
+        
+        for pattern in self.EXPERIENCE_PATTERNS:
+            matches = re.findall(pattern, text_lower)
+            for match in matches:
+                if isinstance(match, tuple) and len(match) > 1 and match[0] and match[1]:
+                    try:
+                        min_years = int(match[0])
+                        max_years = int(match[1])
+                        return None, (min_years, max_years)
+                    except (ValueError, IndexError):
+                        continue
+                elif match:
+                    try:
+                        # Si match es una tupla pero solo capturó un elemento
+                        val = match[0] if isinstance(match, tuple) else match
+                        years = int(val)
+                        return years, None
+                    except ValueError:
+                        continue
+        
+        return None, None
+    
+    def _extract_remote_policy(self, text: str) -> str:
+        """Extrae política de trabajo remoto."""
+        text_lower = text.lower()
+        
+        if any(kw in text_lower for kw in ["100% remote", "fully remote", "remoto 100%", "teletrabajo", "remote work"]):
+            return "remote"
+        elif any(kw in text_lower for kw in ["hybrid", "híbrido", "mixto", "flexible"]):
+            return "hybrid"
+        elif any(kw in text_lower for kw in ["on-site", "presencial", "oficina"]):
+            return "on-site"
+        return "unknown"
+
+    def _extract_employment_type(self, text: str) -> str:
+        """Extrae tipo de empleo."""
+        text_lower = text.lower()
+        if any(kw in text_lower for kw in ["part-time", "media jornada", "part time"]):
+            return "part-time"
+        elif any(kw in text_lower for kw in ["contract", "freelance", "autónomo", "por proyecto"]):
+            return "contract"
+        elif any(kw in text_lower for kw in ["internship", "pasantía", "beca", "becario"]):
+            return "internship"
+        return "full-time"
+'''
+
+with open(f"{base_path}/src/job_parser/job_pipeline.py", "w") as f:
+    f.write(job_pipeline)
+
+print("📂 Pipeline de Ofertas generado con éxito en: src/job_parser/job_pipeline.py")
+print("🔥 ¡Módulo de Job Parsing agregado al script inicializador!")
+
+
 
 
 
