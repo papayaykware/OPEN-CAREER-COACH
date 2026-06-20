@@ -4,6 +4,7 @@ import re
 from typing import List, Optional
 from dataclasses import dataclass, field
 
+from src.config import TECH_SKILLS, SOFT_SKILLS
 from src.utils.file_loader import load_text_from_file
 
 
@@ -23,32 +24,35 @@ class CVData:
 class CVPipeline:
     """Pipeline completo de procesamiento de CVs."""
 
-    TECH_SKILLS = {
-        "python", "java", "javascript", "typescript",
-        "sql", "docker", "kubernetes", "aws",
-    }
-
-    SOFT_SKILLS = {
-        "liderazgo", "leadership", "comunicación", "communication",
-        "trabajo en equipo", "teamwork",
-    }
-
     EMAIL_PATTERN = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b")
     PHONE_PATTERN = re.compile(r"(?:\+?\d{1,3}[-.\s]?)?\(?\d{2,4}\)?[-.\s]?\d{2,4}[-.\s]?\d{2,4}")
     LINKEDIN_PATTERN = re.compile(r"linkedin\.com/in/[\w-]+")
 
     def __init__(self) -> None:
-        self.tech_skills_lower = {s.lower() for s in self.TECH_SKILLS}
-        self.soft_skills_lower = {s.lower() for s in self.SOFT_SKILLS}
+        self.tech_skills_lower = {s.lower() for s in TECH_SKILLS}
+        self.soft_skills_lower = {s.lower() for s in SOFT_SKILLS}
 
     def process(self, file_path: str) -> CVData:
         extraction = load_text_from_file(file_path)
-        text = extraction["text"]
-
-        cv_data = CVData(
-            raw_text=text,
+        return self._build_cv_data(
+            text=extraction["text"],
             file_format=extraction["format"],
             pages=extraction.get("pages_estimated", 0),
+        )
+
+    def process_text(self, text: str) -> CVData:
+        """Procesa texto de CV ya extraído/pegado, sin pasar por un archivo en disco.
+
+        Útil para interfaces (Gradio, API, etc.) donde el usuario pega el texto
+        directamente en lugar de subir un PDF/DOCX/TXT.
+        """
+        return self._build_cv_data(text=text, file_format="TEXT", pages=0)
+
+    def _build_cv_data(self, text: str, file_format: str, pages: int) -> CVData:
+        cv_data = CVData(
+            raw_text=text,
+            file_format=file_format,
+            pages=pages,
         )
 
         cv_data.email = self._extract_email(text)
