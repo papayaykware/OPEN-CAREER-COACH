@@ -44,22 +44,22 @@ Al completar este módulo serás capaz de:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    STACK COMPLETO                        │
+│                    STACK COMPLETO                       │
 ├─────────────────────────────────────────────────────────┤
 │  Lenguaje:        Python 3.10+                          │
-│  Control:         Git                                     │
-│  IDE:             VS Code                                 │
-│  Contenedores:    Docker                                  │
-│  LLM Local:       Ollama                                  │
-│  UI Web:          Gradio / Streamlit                      │
-│  Vectores:        FAISS / ChromaDB                        │
-│  Embeddings:      Sentence Transformers                   │
-│  Pipelines:       LangChain / LlamaIndex                  │
-│  NLP:             spaCy / Transformers (HuggingFace)      │
-│  PDF:             PyPDF2 / pdfplumber                     │
-│  DOCX:            python-docx                             │
-│  Tests:           pytest                                  │
-│  Linting:         ruff / black                            │
+│  Control:         Git                                   │
+│  IDE:             VS Code                               │
+│  Contenedores:    Docker                                │
+│  LLM Local:       Ollama                                │
+│  UI Web:          Gradio / Streamlit                    │
+│  Vectores:        FAISS / ChromaDB                      │
+│  Embeddings:      Sentence Transformers                 │
+│  Pipelines:       LangChain / LlamaIndex                │
+│  NLP:             spaCy / Transformers (HuggingFace)    │
+│  PDF:             PyPDF2 / pdfplumber                   │
+│  DOCX:            python-docx                           │
+│  Tests:           pytest                                │
+│  Linting:         ruff / black                          │
 └─────────────────────────────────────────────────────────┘
 ```
 
