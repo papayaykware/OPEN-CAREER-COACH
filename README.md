@@ -206,8 +206,4 @@ Este proyecto está licenciado bajo la Licencia MIT - ver [LICENSE](LICENSE) par
 </p>
 """
 
-with open("/mnt/agents/output/open-career-coach/README.md", "w", encoding="utf-8") as f:
-    f.write(readme_content)
-
-print("README.md generado correctamente.")
 
