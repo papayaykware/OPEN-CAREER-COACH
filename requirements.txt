@@ -1,8 +1,12 @@
 # OPEN CAREER COACH - MVP Dependencies
 
 # Core
-gradio==4.44.0
-sentence-transformers==3.0.1
+# NOTA: gradio==4.44.0 + huggingface_hub>=1.0 rompe con
+# "ImportError: cannot import name 'HfFolder' from 'huggingface_hub'"
+# (HfFolder fue eliminado en huggingface_hub 1.0). Se fijan rangos compatibles entre sí.
+gradio>=5.0,<6
+sentence-transformers>=3.0,<4
+huggingface_hub>=0.34,<1
 PyPDF2==3.0.1
 python-docx==1.1.2
 chromadb==0.5.5
