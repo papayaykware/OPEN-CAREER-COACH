@@ -4,6 +4,8 @@ import re
 from typing import List, Optional, Tuple
 from dataclasses import dataclass, field
 
+from src.config import TECH_SKILLS, SOFT_SKILLS
+
 
 @dataclass
 class JobData:
@@ -19,24 +21,14 @@ class JobData:
 
 
 class JobPipeline:
-    TECH_SKILLS = {
-        "python", "java", "javascript", "typescript",
-        "sql", "docker", "kubernetes", "aws",
-    }
-
-    SOFT_SKILLS = {
-        "liderazgo", "leadership", "comunicación", "communication",
-        "trabajo en equipo", "teamwork",
-    }
-
     EXPERIENCE_PATTERNS = [
         r"(?:minimum\s+)?(?:(\d+)\+?\s*(?:years?|años?)(?:\s+of)?(?:\s+experience)?)",
         r"(?:(\d+)\s*(?:-|to|a)\s*(\d+)\s*(?:years?|años?))",
     ]
 
     def __init__(self) -> None:
-        self.tech_skills_lower = {s.lower() for s in self.TECH_SKILLS}
-        self.soft_skills_lower = {s.lower() for s in self.SOFT_SKILLS}
+        self.tech_skills_lower = {s.lower() for s in TECH_SKILLS}
+        self.soft_skills_lower = {s.lower() for s in SOFT_SKILLS}
 
     def process(self, text: str) -> JobData:
         job = JobData(raw_text=text)
