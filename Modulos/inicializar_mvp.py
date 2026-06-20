@@ -300,6 +300,108 @@ class CVPipeline:
         "gestión de conflictos", "conflict resolution",
         "mentoría", "mentoring", "coaching",
     }
+        # Patrones regex para información de contacto
+    EMAIL_PATTERN = re.compile(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b')
+    PHONE_PATTERN = re.compile(r'(?:\+?\d{1,3}[-.\s]?)?\(?\d{2,4}\)?[-.\s]?\d{2,4}[-.\s]?\\d{2,4}')
+    LINKEDIN_PATTERN = re.compile(r'linkedin\.com/in/[\w-]+')
     
+    # Patrones para años de experiencia
+    EXPERIENCE_PATTERNS = [
+        r'(?:(\d+)\+?\s*(?:years?|años?)(?:\s+of)?(?:\s+experience)?)',
+        r'(?:experiencia(?:\s+de)?\s+)(\d+)\s*(?:años?|years?)',
+    ]
+    
+    def __init__(self):
+        self.tech_skills_lower = {s.lower() for s in self.TECH_SKILLS}
+        self.soft_skills_lower = {s.lower() for s in self.SOFT_SKILLS}
+    
+    def process(self, file_path: str) -> CVData:
+        """Procesa un archivo de CV y extrae información estructurada."""
+        from src.utils.file_loader import load_text_from_file
+        
+        extraction = load_text_from_file(file_path)
+        text = extraction["text"]
+        
+        cv_data = CVData(
+            raw_text=text,
+            file_format=extraction["format"],
+            pages=extraction.get("pages_estimated", 0),
+        )
+        
+        cv_data.email = self._extract_email(text)
+        cv_data.phone = self._extract_phone(text)
+        cv_data.linkedin = self._extract_linkedin(text)
+        
+        tech_skills, soft_skills = self._extract_skills(text)
+        cv_data.skills_technical = tech_skills
+        cv_data.skills_soft = soft_skills
+        
+        cv_data.experience_years = self._estimate_experience(text)
+        
+        return cv_data
+    
+    def process_text(self, text: str) -> CVData:
+        """Procesa texto directamente (útil para testing)."""
+        cv_data = CVData(raw_text=text)
+        
+        cv_data.email = self._extract_email(text)
+        cv_data.phone = self._extract_phone(text)
+        cv_data.linkedin = self._extract_linkedin(text)
+        
+        tech_skills, soft_skills = self._extract_skills(text)
+        cv_data.skills_technical = tech_skills
+        cv_data.skills_soft = soft_skills
+        
+        cv_data.experience_years = self._estimate_experience(text)
+        
+        return cv_data
+    
+    def _extract_email(self, text: str) -> Optional[str]:
+        match = self.EMAIL_PATTERN.search(text)
+        return match.group() if match else None
+    
+    def _extract_phone(self, text: str) -> Optional[str]:
+        match = self.PHONE_PATTERN.search(text)
+        return match.group() if match else None
+    
+    def _extract_linkedin(self, text: str) -> Optional[str]:
+        match = self.LINKEDIN_PATTERN.search(text)
+        return match.group() if match else None
+    
+    def _extract_skills(self, text: str) -> tuple[List[str], List[str]]:
+        text_lower = text.lower()
+        
+        tech_found = []
+        for skill in self.tech_skills_lower:
+            pattern = r'\b' + re.escape(skill) + r'\b'
+            if re.search(pattern, text_lower):
+                tech_found.append(skill)
+                
+        soft_found = []
+        for skill in self.soft_skills_lower:
+            pattern = r'\b' + re.escape(skill) + r'\b'
+            if re.search(pattern, text_lower):
+                soft_found.append(skill)
+                
+        return sorted(tech_found), sorted(soft_found)
+        
+    def _estimate_experience(self, text: str) -> Optional[float]:
+        years = []
+        for pattern in self.EXPERIENCE_PATTERNS:
+            matches = re.findall(pattern, text, re.IGNORECASE)
+            for m in matches:
+                try:
+                    years.append(float(m))
+                except ValueError:
+                    continue
+        return max(years) if years else None
+'''
+
+with open(f"{base_path}/src/cv_parser/cv_pipeline.py", "w") as f:
+    f.write(cv_pipeline)
+
+print("📂 Pipeline de CVs generado con éxito en: src/cv_parser/cv_pipeline.py")
+print("🔥 ¡Entorno del MVP listo para inicializarse por completo!")
+
 
 
