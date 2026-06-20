@@ -678,5 +678,3 @@ class JobParser:
 
 **[⬅️ Módulo 3: Procesamiento de CV](03-procesamiento-cv.md) | [➡️ Módulo 5: Matching Inteligente](05-matching.md)**
 '''
-
-print("Módulo 4 generado correctamente.")
