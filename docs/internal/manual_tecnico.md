@@ -265,4 +265,3 @@ print(result)
 ```
 - **Manual de despliegue**  
 
-Dime cuál seguimos, Javier.
