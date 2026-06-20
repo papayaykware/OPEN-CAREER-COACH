@@ -13,7 +13,7 @@ matcher = CVJobMatcher()
 
 
 def analyze(cv_text: str, job_text: str) -> str:
-    cv_data = cv_pipeline.process_text(cv_text) if hasattr(cv_pipeline, "process_text") else cv_pipeline.process("TODO")
+    cv_data = cv_pipeline.process_text(cv_text)
     job_data = job_pipeline.process(job_text)
 
     result = matcher.calculate_match(
