@@ -206,5 +206,100 @@ def _extract_txt(filepath: str) -> Dict[str, str]:
 with open(f"{base_path}/src/utils/file_loader.py", "w") as f:
     f.write(file_loader)
 
-print("📂 Archivos base generados con éxito: config.py, file_loader.py, requirements.txt")
+# ==========================================
+# Fase 5: Generar cv_parser/cv_pipeline.py
+# ==========================================
+cv_pipeline = '''# src/cv_parser/cv_pipeline.py
+"""Pipeline de procesamiento de currículums para el MVP.
+
+Extrae texto, identifica skills básicas y estructura la información.
+"""
+
+import re
+from typing import Dict, List, Set, Optional
+from dataclasses import dataclass, field
+
+
+@dataclass
+class CVData:
+    """Datos estructurados extraídos de un CV."""
+    raw_text: str = ""
+    skills_technical: List[str] = field(default_factory=list)
+    skills_soft: List[str] = field(default_factory=list)
+    experience_years: Optional[float] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    linkedin: Optional[str] = None
+    file_format: str = ""
+    pages: int = 0
+
+
+class CVPipeline:
+    """Pipeline completo de procesamiento de CVs.
+    
+    Procesa archivos PDF, DOCX y TXT para extraer:
+    - Texto completo
+    - Skills técnicas (hard skills)
+    - Skills blandas (soft skills)
+    - Información de contacto
+    - Años de experiencia estimados
+    """
+    
+    # Diccionario de skills técnicas para detección
+    TECH_SKILLS = {
+        "python", "java", "javascript", "typescript", "c++", "c#", "go", "rust",
+        "ruby", "php", "scala", "kotlin", "swift", "objective-c", "perl", "r",
+        "matlab", "sas", "vba", "shell", "bash", "powershell",
+        "html", "css", "sass", "less", "react", "vue", "vue.js", "angular",
+        "svelte", "next.js", "nuxt", "django", "flask", "fastapi", "spring",
+        "express", "nodejs", "node.js", "laravel", "rails", "asp.net",
+        "sql", "mysql", "postgresql", "oracle", "mongodb", "redis",
+        "elasticsearch", "cassandra", "dynamodb", "neo4j", "sqlite",
+        "firebase", "supabase", "snowflake", "bigquery",
+        "aws", "amazon web services", "azure", "gcp", "google cloud",
+        "docker", "kubernetes", "openshift", "terraform", "ansible",
+        "jenkins", "gitlab ci", "github actions", "circleci", "travis ci",
+        "puppet", "chef", "vagrant", "nginx", "apache", "istio", "helm",
+        "tensorflow", "pytorch", "keras", "scikit-learn", "xgboost",
+        "lightgbm", "pandas", "numpy", "scipy", "matplotlib", "seaborn",
+        "plotly", "tableau", "power bi", "looker", "spark", "hadoop",
+        "kafka", "airflow", "dbt", "mlflow", "kubeflow",
+        "react native", "flutter", "ionic", "cordova", "xamarin",
+        "android", "ios", "pytest", "junit", "selenium", "cypress", "jest", "mocha",
+        "cucumber", "postman", "jmeter", "k6", "git", "svn", "linux", "ubuntu", "windows", "macos",
+        "rest api", "graphql", "grpc", "soap", "websockets",
+        "microservices", "serverless", "lambda", "event-driven",
+        "ci/cd", "devops", "sre", "platform engineering",
+        "agile", "scrum", "kanban", "safe", "jira", "confluence",
+        "blockchain", "solidity", "web3", "smart contracts",
+        "figma", "sketch", "adobe xd", "invision",
+        "wordpress", "drupal", "magento", "shopify",
+    }
+    
+    # Diccionario de soft skills
+    SOFT_SKILLS = {
+        "liderazgo", "leadership", "comunicación", "communication",
+        "trabajo en equipo", "teamwork", "team player",
+        "resolución de problemas", "problem solving",
+        "pensamiento crítico", "critical thinking",
+        "adaptabilidad", "adaptability", "flexibility", "flexible",
+        "creatividad", "creativity", "innovation", "innovative",
+        "gestión del tiempo", "time management",
+        "empatía", "empathy", "negociación", "negotiation",
+        "presentación", "presentation skills",
+        "proactividad", "proactive", "self-starter",
+        "autonomía", "autonomy", "self-motivated",
+        "atención al detalle", "attention to detail",
+        "gestión de proyectos", "project management",
+        "análisis", "analytical thinking",
+        "orientación a resultados", "results-oriented",
+        "orientación al cliente", "customer-oriented",
+        "aprendizaje continuo", "continuous learning",
+        "pensamiento estratégico", "strategic thinking",
+        "toma de decisiones", "decision making",
+        "gestión de conflictos", "conflict resolution",
+        "mentoría", "mentoring", "coaching",
+    }
+    
+
 
