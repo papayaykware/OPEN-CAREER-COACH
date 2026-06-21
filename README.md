@@ -41,20 +41,26 @@ El objetivo es ofrecer una base sólida, extensible y profesional para construir
 ```
 OPEN-CAREER-COACH/
 │
+├── run_mvp.py               → CLI simple (entrada rápida sin embeddings)
 ├── src/
-│   ├── cv_parser/          → Procesamiento de CVs
-│   ├── job_parser/         → Procesamiento de ofertas
-│   ├── matching/           → Motor de similitud semántica
-│   ├── ui/                 → Interfaz Gradio
-│   └── utils/              → Utilidades internas
+│   ├── config.py             → catálogo de skills + configuración de modelo
+│   ├── cv_parser_simple.py   → versión ligera de extracción de CV
+│   ├── job_parser_simple.py  → versión ligera de extracción de oferta
+│   ├── matching_simple.py    → versión ligera de matching (por palabra clave)
+│   ├── recommender.py        → recomendaciones según score
+│   ├── cv_parser/            → procesamiento avanzado de CVs (regex + embeddings)
+│   ├── job_parser/            → procesamiento avanzado de ofertas
+│   ├── matching/              → motor de similitud semántica (CVJobMatcher)
+│   ├── ui/                    → interfaz Gradio
+│   └── utils/                 → utilidades internas (carga de PDF/DOCX/TXT)
 │
-├── data/                   → Datos de ejemplo
-├── tests/                  → Pruebas unitarias
-├── tools/                  → Scripts de soporte
+├── tools/                   → scripts de soporte (regeneración del andamiaje)
 ├── requirements.txt
 ├── CHANGELOG.md
 └── README.md
 ```
+
+> `data/` (CVs y ofertas de ejemplo) y `tests/` (pruebas automatizadas) están previstos en el roadmap pero aún no forman parte del repositorio.
 
 ---
 
@@ -70,18 +76,28 @@ pip install -r requirements.txt
 
 # ▶️ Uso Rápido
 
-Ejecutar la interfaz Gradio:
+### Opción A — CLI simple (sin instalar modelo de embeddings)
+
+```bash
+python run_mvp.py
+```
+
+Te pedirá tus habilidades y los requisitos de la oferta por teclado (separados por comas) y devolverá un score básico de coincidencia.
+
+### Opción B — Interfaz Gradio (matching semántico completo)
 
 ```bash
 python -m src.ui.gradio_app
 ```
 
-Esto abrirá una interfaz donde podrás:
+Abre una interfaz web local con dos cuadros de texto donde puedes **pegar** el contenido de tu CV y de la oferta de empleo. Al pulsar "Analizar matching" obtendrás:
 
-- Subir un CV  
-- Subir una oferta  
-- Obtener un **score de matching**  
-- Ver explicaciones del análisis  
+- Score global de compatibilidad
+- Similitud semántica, match de skills y match de experiencia por separado
+- Skills coincidentes y faltantes
+- Recomendaciones en texto
+
+La primera ejecución descarga el modelo de embeddings (~80 MB) desde Hugging Face; requiere conexión a internet ese primer arranque.
 
 ---
 
@@ -116,15 +132,18 @@ Módulo: **ui**
 ```python
 from src.cv_parser.cv_pipeline import CVPipeline
 from src.job_parser.job_pipeline import JobPipeline
-from src.matching.similarity import SimilarityEngine
+from src.matching.similarity import CVJobMatcher
 
-cv = CVPipeline().process("cv.pdf")
-job = JobPipeline().process("job_offer.txt")
+cv_data = CVPipeline().process("cv.pdf")          # también: .process_text("texto pegado")
+job_data = JobPipeline().process("texto de la oferta")
 
-engine = SimilarityEngine()
-score = engine.compare(cv, job)
+matcher = CVJobMatcher()
+resultado = matcher.calculate_match(cv_data.__dict__, job_data.__dict__)
 
-print("Matching:", score)
+print("Score global:", resultado.global_score)
+print("Skills coincidentes:", resultado.matched_skills)
+print("Skills faltantes:", resultado.missing_skills)
+print("Recomendaciones:", resultado.recommendations)
 ```
 
 ---
