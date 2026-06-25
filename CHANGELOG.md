@@ -46,14 +46,41 @@ Este documento recoge los cambios realizados en cada versión del proyecto sigui
 ---
 
 ## 🔜 [v1.1.0] — En desarrollo
-### Objetivo: Mejoras de UX y estabilidad
 
-#### Previsto
-- Integración de modelo local para evitar dependencias externas.
-- Mejoras en la interfaz Gradio.
-- Explicación detallada del matching.
-- Exportación de informes (Markdown / JSON).
-- Ejemplos de CV y ofertas listos para usar.
+### Objetivo: Matching explicable + tests + exportación de informes
+
+#### ✨ Añadido
+
+- **`src/matching/explainer.py`** — Módulo `MatchingExplainer`: motor de matching
+  explicable en tres niveles:
+  * Nivel 1: descomposición por dimensiones semánticas (`habilidades_tecnicas`,
+    `experiencia`, `formacion`, `habilidades_blandas`, `idiomas`) con scoring
+    Jaccard por dimensión e inyección opcional del `SimilarityEngine` existente.
+  * Nivel 2: gap analysis estructurado por requisito (`cubierto` / `parcial` /
+    `ausente`) con extracción heurística de requisitos en español.
+  * Nivel 3: score global ponderado configurable + narrativa en lenguaje natural.
+  * Dataclasses `DimensionScore`, `RequirementMatch`, `ExplainedMatchResult`
+    como contrato de salida tipado.
+  * Compatible con el pipeline actual sin romper la API existente.
+
+- **`tests/test_explainer.py`** — Suite de tests unitarios completa (pytest):
+  * 7 clases de test con cobertura de inicialización, extracción dimensional,
+    gap analysis, score ponderado, narrativa, integración end-to-end y
+    similitud fallback.
+  * Fixtures `CV_ALTO_ENCAJE`, `CV_BAJO_ENCAJE` y `OFERTA_DATA_SCIENCE`
+    como casos de prueba representativos.
+  * Tests de casos límite: textos vacíos, pesos inválidos, CV idéntico a oferta.
+
+#### 🔜 Pendiente en esta versión
+
+- Integración del `MatchingExplainer` en la interfaz Gradio.
+- Exportación de informes (PDF / Markdown / JSON).
+- Ejemplos de CV y ofertas listos para usar en `data/`.
+
+#### 🏗️ Autoría
+
+- Autor conceptual: Claude (Anthropic)
+- Director del proyecto: Javi Ciborro (@papayaykware)
 
 ---
 
