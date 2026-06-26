@@ -1,46 +1,171 @@
-"""Interfaz mínima en Gradio para el MVP."""
+"""
+OPEN-CAREER-COACH · src/ui/gradio_app.py
+Interfaz Gradio — v1.1.0 (Matching Explicable)
+
+Autor conceptual: Claude (Anthropic)
+Director del proyecto: Javi Ciborro (@papayaykware)
+Licencia: MIT
+"""
 
 import gradio as gr
 
 from src.cv_parser.cv_pipeline import CVPipeline
 from src.job_parser.job_pipeline import JobPipeline
 from src.matching.similarity import CVJobMatcher
+from src.matching.explainer import MatchingExplainer
 
+# ─────────────────────────────────────────────
+# INICIALIZACIÓN DE PIPELINES
+# ─────────────────────────────────────────────
 
-cv_pipeline = CVPipeline()
+cv_pipeline  = CVPipeline()
 job_pipeline = JobPipeline()
-matcher = CVJobMatcher()
+matcher      = CVJobMatcher()
+explainer    = MatchingExplainer()
 
 
-def analyze(cv_text: str, job_text: str) -> str:
-    cv_data = cv_pipeline.process_text(cv_text)
+# ─────────────────────────────────────────────
+# LÓGICA DE ANÁLISIS
+# ─────────────────────────────────────────────
+
+def analyze(cv_text: str, job_text: str):
+    """
+    Pipeline completo: parsing → matching base → matching explicable.
+    Devuelve 4 valores para los 4 componentes de salida de la UI.
+    """
+    if not cv_text.strip() or not job_text.strip():
+        msg = "⚠️ Por favor, introduce tanto el texto del CV como el de la oferta."
+        return msg, "", "", ""
+
+    # — Parsing —
+    cv_data  = cv_pipeline.process_text(cv_text)
     job_data = job_pipeline.process(job_text)
 
-    result = matcher.calculate_match(
+    # — Matching base (motor existente) —
+    base = matcher.calculate_match(
         cv_data=cv_data.__dict__,
         job_data=job_data.__dict__,
     )
 
-    return (
-        f"Score global: {result.global_score}\n"
-        f"Similitud semántica: {result.semantic_similarity}\n"
-        f"Match de skills: {result.skill_match_score}\n"
-        f"Match de experiencia: {result.experience_match_score}\n\n"
-        f"Skills coincidentes: {', '.join(result.matched_skills) or '-'}\n"
-        f"Skills faltantes: {', '.join(result.missing_skills) or '-'}\n"
-        f"Recomendaciones:\n- " + "\n- ".join(result.recommendations)
+    # — Matching explicable (nuevo) —
+    explained = explainer.explain(cv_text, job_text)
+
+    # — Score global con emoji de nivel —
+    score_pct = int(explained.global_score * 100)
+    if score_pct >= 65:
+        nivel_emoji = "🟢"
+        nivel_texto = "Alto encaje"
+    elif score_pct >= 40:
+        nivel_emoji = "🟡"
+        nivel_texto = "Encaje moderado"
+    else:
+        nivel_emoji = "🔴"
+        nivel_texto = "Encaje bajo"
+
+    # — Salida 1: Resumen ejecutivo —
+    resumen = (
+        f"{nivel_emoji} **{nivel_texto}** — Score explicable: {score_pct}%\n\n"
+        f"Score base (embeddings): {base.global_score:.2f} | "
+        f"Similitud semántica: {base.semantic_similarity:.2f} | "
+        f"Match de skills: {base.skill_match_score:.2f}\n\n"
+        f"{explained.narrative}"
     )
 
+    # — Salida 2: Desglose dimensional —
+    filas = []
+    for ds in explained.dimension_scores:
+        barra = _barra_progreso(ds.score)
+        filas.append(
+            f"**{ds.dimension.replace('_', ' ').title()}** "
+            f"(peso {int(ds.weight*100)}%)\n"
+            f"{barra} {int(ds.score*100)}%\n"
+            f"CV: {', '.join(ds.cv_fragments[:5]) or '—'}\n"
+            f"Oferta: {', '.join(ds.offer_fragments[:5]) or '—'}"
+        )
+    dimensional = "\n\n".join(filas)
+
+    # — Salida 3: Gap analysis —
+    gap_lines = []
+    for rm in explained.gap_analysis:
+        icono = {"cubierto": "✅", "parcial": "🔶", "ausente": "❌"}.get(rm.status, "❓")
+        evidencia = f" → evidencia: *{rm.cv_evidence}*" if rm.cv_evidence else ""
+        gap_lines.append(f"{icono} {rm.requirement[:100]}{evidencia}")
+    gap_md = "\n".join(gap_lines) if gap_lines else "No se detectaron requisitos estructurados en la oferta."
+
+    # — Salida 4: Skills base (motor existente) —
+    skills_base = (
+        f"✅ **Skills coincidentes:** {', '.join(base.matched_skills) or '—'}\n\n"
+        f"❌ **Skills faltantes:** {', '.join(base.missing_skills) or '—'}\n\n"
+        f"💡 **Recomendaciones:**\n" +
+        "\n".join(f"  · {r}" for r in base.recommendations)
+    )
+
+    return resumen, dimensional, gap_md, skills_base
+
+
+def _barra_progreso(score: float, longitud: int = 20) -> str:
+    """Barra de progreso ASCII proporcional al score."""
+    llenos = int(score * longitud)
+    return "█" * llenos + "░" * (longitud - llenos)
+
+
+# ─────────────────────────────────────────────
+# INTERFAZ GRADIO
+# ─────────────────────────────────────────────
 
 def main():
-    with gr.Blocks() as demo:
-        gr.Markdown("# OPEN CAREER COACH - MVP")
-        cv_input = gr.Textbox(label="Texto del CV", lines=10)
-        job_input = gr.Textbox(label="Texto de la oferta", lines=10)
-        output = gr.Textbox(label="Resultado", lines=15)
+    with gr.Blocks(title="Open Career Coach", theme=gr.themes.Soft()) as demo:
 
-        btn = gr.Button("Analizar matching")
-        btn.click(analyze, inputs=[cv_input, job_input], outputs=output)
+        gr.Markdown(
+            """
+            # 🎯 OPEN CAREER COACH
+            **Matching explicable entre CV y oferta de empleo**
+            *v1.1.0 · Open Source · [@papayaykware](https://github.com/papayaykware)*
+            """
+        )
+
+        # — Inputs —
+        with gr.Row():
+            cv_input  = gr.Textbox(
+                label="📄 Texto del CV",
+                placeholder="Pega aquí el contenido de tu CV...",
+                lines=14,
+            )
+            job_input = gr.Textbox(
+                label="💼 Texto de la oferta",
+                placeholder="Pega aquí la descripción de la oferta...",
+                lines=14,
+            )
+
+        btn = gr.Button("🔍 Analizar matching", variant="primary", size="lg")
+
+        # — Outputs —
+        with gr.Tabs():
+            with gr.Tab("📊 Resumen"):
+                out_resumen = gr.Markdown(label="Resumen ejecutivo")
+
+            with gr.Tab("📐 Desglose dimensional"):
+                out_dimensional = gr.Markdown(label="Score por dimensión")
+
+            with gr.Tab("🔎 Gap analysis"):
+                out_gaps = gr.Markdown(label="Análisis de requisitos")
+
+            with gr.Tab("🛠️ Skills (motor base)"):
+                out_skills = gr.Markdown(label="Skills y recomendaciones")
+
+        # — Evento —
+        btn.click(
+            fn=analyze,
+            inputs=[cv_input, job_input],
+            outputs=[out_resumen, out_dimensional, out_gaps, out_skills],
+        )
+
+        gr.Markdown(
+            """
+            ---
+            *Autor conceptual: Claude (Anthropic) · Director: Javi Ciborro (@papayaykware) · Licencia MIT*
+            """
+        )
 
     demo.launch()
 
