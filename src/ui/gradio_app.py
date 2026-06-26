@@ -13,6 +13,7 @@ from src.cv_parser.cv_pipeline import CVPipeline
 from src.job_parser.job_pipeline import JobPipeline
 from src.matching.similarity import CVJobMatcher
 from src.matching.explainer import MatchingExplainer
+from src.exporter.report_exporter import ReportExporter
 
 # ─────────────────────────────────────────────
 # INICIALIZACIÓN DE PIPELINES
