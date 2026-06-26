@@ -12,7 +12,7 @@ import gradio as gr
 from src.cv_parser.cv_pipeline import CVPipeline
 from src.job_parser.job_pipeline import JobPipeline
 from src.matching.similarity import CVJobMatcher
-from src.matching.explainer import MatchingExplainer
+from src.matching.explainer import MatchingExplainer exporter = ReportExporter()
 from src.exporter.report_exporter import ReportExporter
 
 # ─────────────────────────────────────────────
@@ -114,6 +114,19 @@ def _barra_progreso(score: float, longitud: int = 20) -> str:
 # INTERFAZ GRADIO
 # ─────────────────────────────────────────────
 
+def export_report(cv_text: str, job_text: str) -> tuple[str, str]:
+    """Genera y escribe los informes MD y JSON; devuelve las rutas."""
+    if not cv_text.strip() or not job_text.strip():
+        return "", ""
+    cv_data  = cv_pipeline.process_text(cv_text)
+    job_data = job_pipeline.process(job_text)
+    base     = matcher.calculate_match(
+        cv_data=cv_data.__dict__, job_data=job_data.__dict__
+    )
+    explained = explainer.explain(cv_text, job_text)
+    rutas = exporter.export(explained, base, nombre_base="informe_matching")
+    return str(rutas.get("md", "")), str(rutas.get("json", ""))
+
 def main():
     with gr.Blocks(title="Open Career Coach", theme=gr.themes.Soft()) as demo:
 
@@ -161,7 +174,18 @@ def main():
             outputs=[out_resumen, out_dimensional, out_gaps, out_skills],
         )
 
-        gr.Markdown(
+       with gr.Row():
+    btn_export = gr.Button("📥 Exportar informe", variant="secondary")
+    out_md   = gr.File(label="Informe Markdown")
+    out_json = gr.File(label="Informe JSON")
+
+btn_export.click(
+    fn=export_report,
+    inputs=[cv_input, job_input],
+    outputs=[out_md, out_json],
+)
+
+gr.Markdown(
             """
             ---
             *Autor conceptual: Claude (Anthropic) · Director: Javi Ciborro (@papayaykware) · Licencia MIT*
