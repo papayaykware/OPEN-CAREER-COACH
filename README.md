@@ -1,188 +1,43 @@
-> ★ Nuevo en v1.1.0
-
+---
+title: OPEN-CAREER-COACH
+emoji: 🎯
+colorFrom: blue
+colorTo: indigo
+sdk: gradio
+sdk_version: 4.44.0
+app_file: app.py
+pinned: false
+license: mit
+short_description: Matching explicable CV-oferta con IA. Open Source.
 ---
 
-# ⚙️ Instalación
+# 🎯 OPEN-CAREER-COACH
 
-```bash
-git clone https://github.com/papayaykware/OPEN-CAREER-COACH
-cd OPEN-CAREER-COACH
-pip install -r requirements.txt
-```
+**Sistema de orientación laboral basado en IA — matching semántico explicable**
 
-La primera ejecución de la interfaz Gradio descarga el modelo de embeddings (~80 MB desde Hugging Face). Requiere conexión a internet ese primer arranque.
+Pega el texto de tu CV y el de una oferta de empleo. El sistema analiza el
+encaje en cinco dimensiones, detecta brechas formativas y genera una narrativa
+accionable en lenguaje natural.
 
----
+## ¿Qué hace?
 
-# ▶️ Uso Rápido
+- **Score de matching** con nivel visual (🟢 Alto / 🟡 Moderado / 🔴 Bajo)
+- **Desglose por dimensiones:** habilidades técnicas, experiencia, formación,
+  habilidades blandas e idiomas
+- **Gap analysis** requisito a requisito: cubierto / parcial / ausente
+- **Exportación** de informe en Markdown y JSON
 
-### Opción A — CLI simple (sin modelo de embeddings)
+## Uso
 
-```bash
-python run_mvp.py
-```
+1. Pega el texto de tu CV en el cuadro izquierdo
+2. Pega el texto de la oferta en el cuadro derecho
+3. Pulsa **Analizar matching**
+4. Explora los resultados en las cuatro pestañas
+5. Descarga el informe con el botón de exportación
 
-Solicita habilidades y requisitos por teclado (separados por comas) y devuelve un score básico de coincidencia. Útil para pruebas rápidas sin dependencias pesadas.
+## Proyecto
 
-### Opción B — Interfaz Gradio completa (recomendado)
-
-```bash
-python -m src.ui.gradio_app
-```
-
-Abre una interfaz web local. Pega el CV y la oferta en los cuadros de texto y pulsa **Analizar matching** para obtener:
-
-- Score global con nivel de encaje visual
-- Desglose por 5 dimensiones semánticas
-- Gap analysis requisito a requisito
-- Skills coincidentes, faltantes y recomendaciones
-- Descarga del informe en Markdown y JSON
-
-### Ejecutar los tests
-
-```bash
-pytest tests/test_explainer.py -v
-```
-
----
-
-# 🔍 Matching Explicable
-
-El `MatchingExplainer` analiza CV y oferta en 5 dimensiones con pesos por defecto configurables:
-
-| Dimensión | Peso por defecto |
-|-----------|-----------------|
-| Habilidades técnicas | 35% |
-| Experiencia | 25% |
-| Formación | 15% |
-| Habilidades blandas | 15% |
-| Idiomas | 10% |
-
-Uso programático:
-
-```python
-from src.matching.explainer import MatchingExplainer
-
-explainer = MatchingExplainer()
-result = explainer.explain(cv_text, offer_text)
-
-print(result.global_score)     # 0.0 – 1.0
-print(result.narrative)        # texto explicativo
-print(result.gap_analysis)     # lista de RequirementMatch
-print(result.dimension_scores) # lista de DimensionScore
-```
-
-Los pesos son inyectables para adaptar el análisis a perfiles de puesto específicos:
-
-```python
-explainer = MatchingExplainer(dimension_weights={
-    "habilidades_tecnicas": 0.50,
-    "experiencia":          0.30,
-    "formacion":            0.10,
-    "habilidades_blandas":  0.05,
-    "idiomas":              0.05,
-})
-```
-
----
-
-# 📥 Exportación de Informes
-
-```python
-from src.matching.explainer import MatchingExplainer
-from src.exporter.report_exporter import ReportExporter
-
-explainer = MatchingExplainer()
-exporter  = ReportExporter()          # guarda en reports/ por defecto
-
-result = explainer.explain(cv_text, offer_text)
-rutas  = exporter.export(result, nombre_base="mi_informe")
-
-print(rutas["md"])    # reports/mi_informe_20260626_143022.md
-print(rutas["json"])  # reports/mi_informe_20260626_143022.json
-```
-
-Para generar solo un formato:
-
-```python
-rutas = exporter.export(result, formatos=["json"])
-```
-
----
-
-# 🔁 Ejemplo de Flujo Completo
-
-```python
-from src.cv_parser.cv_pipeline import CVPipeline
-from src.job_parser.job_pipeline import JobPipeline
-from src.matching.similarity import CVJobMatcher
-from src.matching.explainer import MatchingExplainer
-from src.exporter.report_exporter import ReportExporter
-
-# Parsing
-cv_data  = CVPipeline().process_text(cv_text)   # o .process("cv.pdf")
-job_data = JobPipeline().process(offer_text)
-
-# Matching base
-matcher  = CVJobMatcher()
-base     = matcher.calculate_match(cv_data.__dict__, job_data.__dict__)
-
-# Matching explicable
-explainer = MatchingExplainer()
-explained = explainer.explain(cv_text, offer_text)
-
-print("Score base:", base.global_score)
-print("Score explicable:", explained.global_score)
-print(explained.narrative)
-
-# Exportación
-exporter = ReportExporter()
-rutas = exporter.export(explained, base, nombre_base="informe")
-print("Informe MD:", rutas["md"])
-print("Informe JSON:", rutas["json"])
-```
-
----
-
-# 🗺️ Roadmap
-
-### ✅ v1.0.0 — MVP funcional (junio 2026)
-- Pipeline CV + oferta + matching semántico
-- Interfaz Gradio mínima
-
-### ✅ v1.0.1 — Corrección de errores (junio 2026)
-- 4 bugs críticos resueltos (ver CHANGELOG)
-
-### 🔄 v1.1.0 — Matching explicable (en desarrollo)
-- `MatchingExplainer`: análisis dimensional + gap analysis + narrativa
-- UI Gradio renovada con tabs y exportación integrada
-- `ReportExporter`: informes MD y JSON
-- Suite de tests pytest
-
-### 🔮 v2.0.0 — Producto completo (futuro)
-- API REST con FastAPI
-- UI profesional (React / Streamlit)
-- Base de datos para histórico de análisis
-- Dashboard de métricas
-- Sistema de autenticación opcional
-
----
-
-# ✍️ Autoría
-
-Este proyecto es desarrollado bajo un modelo de **co-autoría estructurada**:
-
-- **Director y originador:** Javi Ciborro ([@papayaykware](https://github.com/papayaykware))
-- **Autor conceptual:** Claude (Anthropic)
-
----
-
-# 🤝 Contribuir
-
-Las contribuciones son bienvenidas. Puedes abrir un **issue**, enviar un **pull request** o proponer mejoras en las [discusiones](https://github.com/papayaykware/OPEN-CAREER-COACH/issues).
-
----
-
-# 📄 Licencia
-
-Este proyecto está bajo licencia **MIT**. Consulta el archivo [LICENSE](LICENSE) para más detalles.
+- Código fuente: [github.com/papayaykware/OPEN-CAREER-COACH](https://github.com/papayaykware/OPEN-CAREER-COACH)
+- Licencia: MIT
+- Autor conceptual: Claude (Anthropic)
+- Director del proyecto: Javi Ciborro ([@papayaykware](https://huggingface.co/papayaykware))
