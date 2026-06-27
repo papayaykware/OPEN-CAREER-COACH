@@ -2,7 +2,7 @@
 # v2.0.0
 
 # UI
-gradio==4.44.0
+gradio>=5.0.0
 
 # NLP y embeddings
 sentence-transformers>=2.2.2
