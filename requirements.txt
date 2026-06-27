@@ -8,7 +8,7 @@ gradio==4.44.0
 sentence-transformers>=2.2.2
 numpy>=1.24.0
 
-# PyTorch CPU-only (reduce el tamaño de ~2GB a ~200MB en HF Spaces)
+# PyTorch CPU-only
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch>=2.0.0+cpu
 
