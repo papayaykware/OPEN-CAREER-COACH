@@ -1,0 +1,23 @@
+# OPEN-CAREER-COACH — dependencias
+# v2.0.0
+
+# UI
+gradio==4.44.0
+
+# NLP y embeddings
+sentence-transformers>=2.2.2
+numpy>=1.24.0
+
+# PyTorch CPU-only (reduce el tamaño de ~2GB a ~200MB en HF Spaces)
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch>=2.0.0+cpu
+
+# Procesamiento de documentos
+pdfminer.six>=20221105
+python-docx>=0.8.11
+python-magic>=0.4.27
+
+# API REST
+fastapi>=0.111.0
+uvicorn[standard]>=0.29.0
+pydantic>=2.0.0
