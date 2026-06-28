@@ -291,3 +291,102 @@ async def export(request: ExportRequest):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error durante la exportación: {str(e)}"
         )
+@app.get(
+    "/history",
+    response_model=HistoryResponse,
+    summary="Historial de análisis",
+    tags=["Historial"],
+)
+async def history(
+    limit: int = 20,
+    offset: int = 0,
+    min_score: Optional[float] = None,
+    nivel: Optional[str] = None,
+):
+    """Lista los análisis almacenados con filtros y paginación."""
+    _check_ready()
+    records = app_state.repository.list_recent(
+        limit=limit, offset=offset, min_score=min_score, nivel=nivel
+    )
+    total = app_state.repository.count()
+
+    def _to_response(rec):
+        return AnalysisRecordResponse(
+            id=rec.id,
+            created_at=rec.created_at,
+            global_score=rec.global_score,
+            nivel=rec.nivel,
+            narrative=rec.narrative,
+            strengths=rec.strengths,
+            gaps=rec.gaps,
+            dimension_scores=[
+                DimensionScoreResponse(**ds) for ds in rec.dimension_scores
+            ],
+            gap_analysis=[
+                RequirementMatchResponse(**rm) for rm in rec.gap_analysis
+            ],
+            metadata=rec.metadata,
+            profile_type=rec.profile_type,
+            export_md=rec.export_md,
+            export_json=rec.export_json,
+        )
+
+    return HistoryResponse(
+        total=total,
+        limit=limit,
+        offset=offset,
+        records=[_to_response(r) for r in records],
+    )
+
+
+@app.get(
+    "/history/{analysis_id}",
+    response_model=AnalysisRecordResponse,
+    summary="Recuperar análisis por ID",
+    tags=["Historial"],
+)
+async def get_analysis(analysis_id: int):
+    """Recupera un análisis concreto por su ID."""
+    _check_ready()
+    rec = app_state.repository.get_by_id(analysis_id)
+    if not rec:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No existe ningún análisis con ID {analysis_id}."
+        )
+    return AnalysisRecordResponse(
+        id=rec.id,
+        created_at=rec.created_at,
+        global_score=rec.global_score,
+        nivel=rec.nivel,
+        narrative=rec.narrative,
+        strengths=rec.strengths,
+        gaps=rec.gaps,
+        dimension_scores=[DimensionScoreResponse(**ds) for ds in rec.dimension_scores],
+        gap_analysis=[RequirementMatchResponse(**rm) for rm in rec.gap_analysis],
+        metadata=rec.metadata,
+        profile_type=rec.profile_type,
+        export_md=rec.export_md,
+        export_json=rec.export_json,
+    )
+
+
+@app.get(
+    "/history/stats",
+    response_model=StatsResponse,
+    summary="Estadísticas del historial",
+    tags=["Historial"],
+)
+async def history_stats():
+    """Devuelve estadísticas agregadas de todos los análisis almacenados."""
+    _check_ready()
+    s = app_state.repository.stats()
+    return StatsResponse(
+        total=s.get("total", 0),
+        avg_score=s.get("avg_score"),
+        max_score=s.get("max_score"),
+        min_score=s.get("min_score"),
+        total_alto=s.get("total_alto", 0),
+        total_moderado=s.get("total_moderado", 0),
+        total_bajo=s.get("total_bajo", 0),
+    )
