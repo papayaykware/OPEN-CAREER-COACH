@@ -1,12 +1,15 @@
 """
 OPEN-CAREER-COACH · src/api/main.py
-API REST con FastAPI — v2.0.0
+API REST con FastAPI — v2.0.0-F2
 
 Endpoints:
-    GET  /health          → Estado del servicio
-    POST /analyze         → Matching explicable completo
-    POST /export          → Generación de informes
-    GET  /docs            → Documentación automática (Swagger)
+    GET  /health              → Estado del servicio
+    POST /analyze             → Matching explicable completo
+    POST /export              → Generación de informes
+    GET  /history             → Historial de análisis
+    GET  /history/stats       → Estadísticas del historial
+    GET  /history/{id}        → Análisis por ID
+    GET  /docs                → Documentación automática (Swagger)
 
 Autor conceptual: Claude (Anthropic)
 Director del proyecto: Javi Ciborro (@papayaykware)
@@ -27,17 +30,16 @@ from src.job_parser.job_pipeline import JobPipeline
 from src.matching.similarity import CVJobMatcher
 from src.matching.explainer import MatchingExplainer
 from src.exporter.report_exporter import ReportExporter
+from src.db.database import Database
+from src.db.analysis_repository import AnalysisRepository
 
-from src. api. schemas import (
+from src.api.schemas import (
     AnalyzeRequest, AnalyzeResponse,
     ExportRequest, ExportResponse,
     HealthResponse,
     DimensionScoreResponse, RequirementMatchResponse,
-    AnalysisRecordResponse, HistoryResponse, StatsResponse,  # <--- Nuevos esquemas añadidos
+    AnalysisRecordResponse, HistoryResponse, StatsResponse,
 )
-
-from src.db.database import Database
-from src.db.analysis_repository import AnalysisRepository
 
 # ─────────────────────────────────────────────
 # LOGGING
@@ -48,25 +50,25 @@ logger = logging.getLogger("open-career-coach")
 
 
 # ─────────────────────────────────────────────
-# ESTADO GLOBAL (inicialización en startup)
+# ESTADO GLOBAL
 # ─────────────────────────────────────────────
 
 class AppState:
-    cv_pipeline:  Optional[CVPipeline]  = None
-    job_pipeline: Optional[JobPipeline] = None
-    matcher:      Optional[CVJobMatcher]    = None
-    explainer:    Optional[MatchingExplainer] = None
-    exporter:     Optional[ReportExporter]    = None
-    ready: bool = False
+    cv_pipeline:  Optional[CVPipeline]         = None
+    job_pipeline: Optional[JobPipeline]        = None
+    matcher:      Optional[CVJobMatcher]       = None
+    explainer:    Optional[MatchingExplainer]  = None
+    exporter:     Optional[ReportExporter]     = None
+    db:           Optional[Database]           = None
+    repository:   Optional[AnalysisRepository] = None
+    ready:        bool                         = False
 
 
 app_state = AppState()
 
-db:         Optional[Database]            = None
-repository: Optional[AnalysisRepository] = None
 
 # ─────────────────────────────────────────────
-# LIFESPAN — carga de pipelines al arranque
+# LIFESPAN
 # ─────────────────────────────────────────────
 
 @asynccontextmanager
@@ -77,9 +79,9 @@ async def lifespan(app: FastAPI):
         app_state.job_pipeline = JobPipeline()
         app_state.matcher      = CVJobMatcher()
         app_state.explainer    = MatchingExplainer()
-        app_state.exporter     = ReportExporter() 
-        app_state.db         = Database()
-app_state.repository = AnalysisRepository(app_state.db)
+        app_state.exporter     = ReportExporter()
+        app_state.db           = Database()
+        app_state.repository   = AnalysisRepository(app_state.db)
         app_state.ready        = True
         logger.info("Pipelines listos.")
     except Exception as e:
@@ -106,7 +108,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],        # ajustar en producción
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -133,8 +135,26 @@ def _check_ready():
         )
 
 
+def _record_to_response(rec) -> AnalysisRecordResponse:
+    return AnalysisRecordResponse(
+        id=rec.id,
+        created_at=rec.created_at,
+        global_score=rec.global_score,
+        nivel=rec.nivel,
+        narrative=rec.narrative,
+        strengths=rec.strengths,
+        gaps=rec.gaps,
+        dimension_scores=[DimensionScoreResponse(**ds) for ds in rec.dimension_scores],
+        gap_analysis=[RequirementMatchResponse(**rm) for rm in rec.gap_analysis],
+        metadata=rec.metadata,
+        profile_type=rec.profile_type,
+        export_md=rec.export_md,
+        export_json=rec.export_json,
+    )
+
+
 # ─────────────────────────────────────────────
-# ENDPOINTS
+# ENDPOINTS — SISTEMA
 # ─────────────────────────────────────────────
 
 @app.get(
@@ -154,9 +174,14 @@ async def health():
             "matcher":      "ok" if app_state.matcher      else "error",
             "explainer":    "ok" if app_state.explainer    else "error",
             "exporter":     "ok" if app_state.exporter     else "error",
+            "database":     "ok" if app_state.db           else "error",
         }
     )
 
+
+# ─────────────────────────────────────────────
+# ENDPOINTS — MATCHING
+# ─────────────────────────────────────────────
 
 @app.post(
     "/analyze",
@@ -167,46 +192,32 @@ async def health():
 )
 async def analyze(request: AnalyzeRequest):
     """
-    Ejecuta el pipeline completo de matching explicable:
-
-    - Parsing de CV y oferta
-    - Matching base (embeddings + similitud coseno)
-    - Matching explicable (dimensional + gap analysis + narrativa)
-    - Exportación opcional de informes
-
-    Devuelve un resultado estructurado con score, dimensiones,
-    gap analysis y narrativa en lenguaje natural.
+    Ejecuta el pipeline completo de matching explicable y persiste
+    el resultado en SQLite.
     """
     _check_ready()
-
     try:
-        # Parsing
         cv_data  = app_state.cv_pipeline.process_text(request.cv_text)
         job_data = app_state.job_pipeline.process(request.offer_text)
 
-        # Matching base
         base = app_state.matcher.calculate_match(
             cv_data=cv_data.__dict__,
             job_data=job_data.__dict__,
         )
-
-        # Matching explicable
         explained = app_state.explainer.explain(
             request.cv_text,
             request.offer_text,
             profile_type=request.profile_type,
         )
 
-        # Exportación opcional
         export_paths = None
         if request.export_formats:
             rutas = app_state.exporter.export(
-                explained,
-                base,
-                formatos=request.export_formats,
+                explained, base, formatos=request.export_formats
             )
             export_paths = {k: str(v) for k, v in rutas.items()}
-            # Persistir en SQLite
+
+        # Persistir en SQLite
         app_state.repository.save(
             result=explained,
             cv_text=request.cv_text,
@@ -243,12 +254,12 @@ async def analyze(request: AnalyzeRequest):
             export_paths=export_paths,
             metadata={
                 **explained.metadata,
-                "base_score":            base.global_score,
-                "semantic_similarity":   base.semantic_similarity,
-                "skill_match_score":     base.skill_match_score,
-                "matched_skills":        list(base.matched_skills),
-                "missing_skills":        list(base.missing_skills),
-                "recommendations":       list(base.recommendations),
+                "base_score":          base.global_score,
+                "semantic_similarity": base.semantic_similarity,
+                "skill_match_score":   base.skill_match_score,
+                "matched_skills":      list(base.matched_skills),
+                "missing_skills":      list(base.missing_skills),
+                "recommendations":     list(base.recommendations),
             }
         )
 
@@ -260,6 +271,10 @@ async def analyze(request: AnalyzeRequest):
         )
 
 
+# ─────────────────────────────────────────────
+# ENDPOINTS — EXPORTACIÓN
+# ─────────────────────────────────────────────
+
 @app.post(
     "/export",
     response_model=ExportResponse,
@@ -268,12 +283,8 @@ async def analyze(request: AnalyzeRequest):
     status_code=status.HTTP_200_OK,
 )
 async def export(request: ExportRequest):
-    """
-    Genera informes en los formatos solicitados (Markdown y/o JSON)
-    y devuelve las rutas de los archivos generados.
-    """
+    """Genera informes en los formatos solicitados y devuelve las rutas."""
     _check_ready()
-
     try:
         cv_data  = app_state.cv_pipeline.process_text(request.cv_text)
         job_data = app_state.job_pipeline.process(request.offer_text)
@@ -283,102 +294,25 @@ async def export(request: ExportRequest):
         )
         explained = app_state.explainer.explain(request.cv_text, request.offer_text)
         rutas = app_state.exporter.export(
-            explained,
-            base,
+            explained, base,
             nombre_base=request.nombre_base,
             formatos=request.formatos,
         )
-
         return ExportResponse(
             paths={k: str(v) for k, v in rutas.items()},
             message=f"Informe generado correctamente en {len(rutas)} formato(s)."
         )
-
     except Exception as e:
         logger.error(f"Error en /export: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error durante la exportación: {str(e)}"
         )
-@app.get(
-    "/history",
-    response_model=HistoryResponse,
-    summary="Historial de análisis",
-    tags=["Historial"],
-)
-async def history(
-    limit: int = 20,
-    offset: int = 0,
-    min_score: Optional[float] = None,
-    nivel: Optional[str] = None,
-):
-    """Lista los análisis almacenados con filtros y paginación."""
-    _check_ready()
-    records = app_state.repository.list_recent(
-        limit=limit, offset=offset, min_score=min_score, nivel=nivel
-    )
-    total = app_state.repository.count()
-
-    def _to_response(rec):
-        return AnalysisRecordResponse(
-            id=rec.id,
-            created_at=rec.created_at,
-            global_score=rec.global_score,
-            nivel=rec.nivel,
-            narrative=rec.narrative,
-            strengths=rec.strengths,
-            gaps=rec.gaps,
-            dimension_scores=[
-                DimensionScoreResponse(**ds) for ds in rec.dimension_scores
-            ],
-            gap_analysis=[
-                RequirementMatchResponse(**rm) for rm in rec.gap_analysis
-            ],
-            metadata=rec.metadata,
-            profile_type=rec.profile_type,
-            export_md=rec.export_md,
-            export_json=rec.export_json,
-        )
-
-    return HistoryResponse(
-        total=total,
-        limit=limit,
-        offset=offset,
-        records=[_to_response(r) for r in records],
-    )
 
 
-@app.get(
-    "/history/{analysis_id}",
-    response_model=AnalysisRecordResponse,
-    summary="Recuperar análisis por ID",
-    tags=["Historial"],
-)
-async def get_analysis(analysis_id: int):
-    """Recupera un análisis concreto por su ID."""
-    _check_ready()
-    rec = app_state.repository.get_by_id(analysis_id)
-    if not rec:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No existe ningún análisis con ID {analysis_id}."
-        )
-    return AnalysisRecordResponse(
-        id=rec.id,
-        created_at=rec.created_at,
-        global_score=rec.global_score,
-        nivel=rec.nivel,
-        narrative=rec.narrative,
-        strengths=rec.strengths,
-        gaps=rec.gaps,
-        dimension_scores=[DimensionScoreResponse(**ds) for ds in rec.dimension_scores],
-        gap_analysis=[RequirementMatchResponse(**rm) for rm in rec.gap_analysis],
-        metadata=rec.metadata,
-        profile_type=rec.profile_type,
-        export_md=rec.export_md,
-        export_json=rec.export_json,
-    )
-
+# ─────────────────────────────────────────────
+# ENDPOINTS — HISTORIAL
+# ─────────────────────────────────────────────
 
 @app.get(
     "/history/stats",
@@ -399,3 +333,47 @@ async def history_stats():
         total_moderado=s.get("total_moderado", 0),
         total_bajo=s.get("total_bajo", 0),
     )
+
+
+@app.get(
+    "/history",
+    response_model=HistoryResponse,
+    summary="Historial de análisis",
+    tags=["Historial"],
+)
+async def history(
+    limit: int = 20,
+    offset: int = 0,
+    min_score: Optional[float] = None,
+    nivel: Optional[str] = None,
+):
+    """Lista los análisis almacenados con filtros opcionales y paginación."""
+    _check_ready()
+    records = app_state.repository.list_recent(
+        limit=limit, offset=offset, min_score=min_score, nivel=nivel
+    )
+    total = app_state.repository.count()
+    return HistoryResponse(
+        total=total,
+        limit=limit,
+        offset=offset,
+        records=[_record_to_response(r) for r in records],
+    )
+
+
+@app.get(
+    "/history/{analysis_id}",
+    response_model=AnalysisRecordResponse,
+    summary="Recuperar análisis por ID",
+    tags=["Historial"],
+)
+async def get_analysis(analysis_id: int):
+    """Recupera un análisis concreto por su ID."""
+    _check_ready()
+    rec = app_state.repository.get_by_id(analysis_id)
+    if not rec:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No existe ningún análisis con ID {analysis_id}."
+        )
+    return _record_to_response(rec)
