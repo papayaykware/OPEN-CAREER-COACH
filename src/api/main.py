@@ -206,6 +206,14 @@ async def analyze(request: AnalyzeRequest):
                 formatos=request.export_formats,
             )
             export_paths = {k: str(v) for k, v in rutas.items()}
+            # Persistir en SQLite
+        app_state.repository.save(
+            result=explained,
+            cv_text=request.cv_text,
+            offer_text=request.offer_text,
+            nivel=_nivel(explained.global_score),
+            export_paths=export_paths,
+        )
 
         return AnalyzeResponse(
             global_score=explained.global_score,
