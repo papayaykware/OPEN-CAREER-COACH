@@ -28,11 +28,12 @@ from src.matching.similarity import CVJobMatcher
 from src.matching.explainer import MatchingExplainer
 from src.exporter.report_exporter import ReportExporter
 
-from src.api.schemas import (
+from src. api. schemas import (
     AnalyzeRequest, AnalyzeResponse,
     ExportRequest, ExportResponse,
     HealthResponse,
     DimensionScoreResponse, RequirementMatchResponse,
+    AnalysisRecordResponse, HistoryResponse, StatsResponse,  # <--- Nuevos esquemas añadidos
 )
 
 from src.db.database import Database
