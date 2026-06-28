@@ -76,7 +76,9 @@ async def lifespan(app: FastAPI):
         app_state.job_pipeline = JobPipeline()
         app_state.matcher      = CVJobMatcher()
         app_state.explainer    = MatchingExplainer()
-        app_state.exporter     = ReportExporter()
+        app_state.exporter     = ReportExporter() 
+        app_state.db         = Database()
+app_state.repository = AnalysisRepository(app_state.db)
         app_state.ready        = True
         logger.info("Pipelines listos.")
     except Exception as e:
