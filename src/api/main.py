@@ -35,6 +35,9 @@ from src.api.schemas import (
     DimensionScoreResponse, RequirementMatchResponse,
 )
 
+from src.db.database import Database
+from src.db.analysis_repository import AnalysisRepository
+
 # ─────────────────────────────────────────────
 # LOGGING
 # ─────────────────────────────────────────────
