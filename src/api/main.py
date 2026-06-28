@@ -61,6 +61,8 @@ class AppState:
 
 app_state = AppState()
 
+db:         Optional[Database]            = None
+repository: Optional[AnalysisRepository] = None
 
 # ─────────────────────────────────────────────
 # LIFESPAN — carga de pipelines al arranque
