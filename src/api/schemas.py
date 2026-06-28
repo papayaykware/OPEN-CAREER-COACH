@@ -84,3 +84,37 @@ class HealthResponse(BaseModel):
     status: str
     version: str
     pipelines: dict[str, str]
+
+# ── Schemas de historial (v2.0.0-F2) ─────────────────────────────────────
+
+class AnalysisRecordResponse(BaseModel):
+    id: int
+    created_at: str
+    global_score: float
+    nivel: str
+    narrative: str
+    strengths: list[str]
+    gaps: list[str]
+    dimension_scores: list[DimensionScoreResponse]
+    gap_analysis: list[RequirementMatchResponse]
+    metadata: dict
+    profile_type: Optional[str]
+    export_md: Optional[str]
+    export_json: Optional[str]
+
+
+class HistoryResponse(BaseModel):
+    total: int
+    limit: int
+    offset: int
+    records: list[AnalysisRecordResponse]
+
+
+class StatsResponse(BaseModel):
+    total: int
+    avg_score: Optional[float]
+    max_score: Optional[float]
+    min_score: Optional[float]
+    total_alto: int
+    total_moderado: int
+    total_bajo: int
